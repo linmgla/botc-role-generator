@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>血染鐘樓 - 隨機發牌器與說書人工具</title>
+    <style>
+        :root {
+            --bg-dark: #0f0f13;
+            --panel-bg: #1a1a24;
+            --accent-red: #8b0000;
+            --accent-crimson: #dc143c;
+            --accent-gold: #d4af37;
+            --text-light: #e0e0e0;
+            --text-dim: #a0a0a0;
+            --card-townsfolk: #2a4d69;
+            --card-outsider: #4b3869;
+            --card-minion: #6b2d2d;
+            --card-demon: #8b0000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--accent-gold);
+            font-size: 2.2rem;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .panel-title {
+            color: var(--accent-gold);
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        select, input, button, textarea {
+            background-color: #252533;
+            color: var(--text-light);
+            border: 1px solid #444;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        select:focus, input:focus, textarea:focus {
+            border-color: var(--accent-gold);
+        }
+
+        button {
+            background-color: var(--accent-red);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: var(--accent-crimson);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-gold {
+            background-color: var(--accent-gold);
+            color: #111;
+        }
+
+        .btn-gold:hover {
+            background-color: #f1c40f;
+        }
+
+        .setup-summary {
+            background: #121218;
+            padding: 12px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        .summary-item span {
+            display: block;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-top: 4px;
+        }
+
+        .townsfolk-val { color: #5dade2; }
+        .outsider-val { color: #bb86fc; }
+        .minion-val { color: #e74c3c; }
+        .demon-val { color: #ff5252; }
+
+        /* Mode Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background-color: #252533;
+            color: var(--text-dim);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent-gold);
+            color: #111;
+            font-weight: bold;
+        }
+
+        /* Pass and Play Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
+        }
+
+        .player-card {
+            background-color: #252533;
+            border: 2px dashed #444;
+            border-radius: 8px;
+            height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            text-align: center;
+            padding: 10px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .player-card.revealed {
+            border-style: solid;
+        }
+
+        .player-card.Townsfolk { border-color: #2980b9; background-color: #1b2a38; }
+        .player-card.Outsider { border-color: #8e44ad; background-color: #2a1b38; }
+        .player-card.Minion { border-color: #c0392b; background-color: #381b1b; }
+        .player-card.Demon { border-color: #ff0000; background-color: #4a0d0d; }
+
+        .seat-number {
+            position: absolute;
+            top: 6px;
+            left: 8px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .role-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 6px 0;
+        }
+
+        .role-type {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .role-desc {
+            font-size: 0.75rem;
+            color: #ccc;
+            margin-top: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Grimoire Table */
+        .grimoire-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .grimoire-table th, .grimoire-table td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .grimoire-table th {
+            background-color: #121218;
+            color: var(--accent-gold);
+        }
+
+        .bluffs-container {
+            margin-top: 15px;
+            background: #121218;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .bluffs-list {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .bluff-badge {
+            background: #2a4d69;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        /* JSON Modal/Area */
+        .json-area {
+            width: 100%;
+            height: 120px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>血染鐘樓 隨機發牌器</h1>
+        <div class="subtitle">Blood on the Clocktower - Script & Role Generator</div>
+    </header>
+
+    <div class="main-container">
+        <!-- 設置區 -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>遊戲設置 (Setup)</span>
+            </div>
+            
+            <div class="controls-grid">
+                <div class="form-group">
+                    <label for="scriptSelect">選擇劇本 (Script)</label>
+                    <select id="scriptSelect" onchange="loadSelectedScript()">
+                        <option value="tb">麻煩滋生 (Trouble Brewing)</option>
+                        <option value="bmr">教派殘月 (Bad Moon Rising)</option>
+                        <option value="snv">紫羅蘭 (Sects & Violets)</option>
+                        <option value="custom">自訂劇本 JSON</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="playerCount">玩家人數 (5-15 人)</label>
+                    <input type="number" id="playerCount" min="5" max="15" value="7" onchange="updateSetupSummary()">
+                </div>
+
+                <div class="form-group">
+                    <label for="outsiderMod">外來者數量修正 (男爵/教父等)</label>
+                    <select id="outsiderMod" onchange="updateSetupSummary()">
+                        <option value="-2">-2 外來者</option>
+                        <option value="-1">-1 外來者</option>
+                        <option value="0" selected>標準配比</option>
+                        <option value="1">+1 外來者</option>
+                        <option value="2">+2 外來者 (男爵效果)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button class="btn-gold" onclick="generateRoles()">🎲 隨機抽取角色 (Deal)</button>
+                </div>
+            </div>
+
+            <div id="customJsonSection" style="display: none;" class="form-group">
+                <label>貼上自訂劇本 JSON (自訂格式)</label>
+                <textarea id="customJsonInput" class="json-area" placeholder='[{"name":"村民角色","team":"townsfolk","ability":"說明"}, ...]'></textarea>
+                <button onclick="parseCustomJson()" style="margin-top: 5px;">套用自訂 JSON</button>
+            </div>
+
+            <div class="setup-summary">
+                <div class="summary-item">村民 (Townsfolk)<span id="cntTownsfolk" class="townsfolk-val">5</span></div>
+                <div class="summary-item">外來者 (Outsider)<span id="cntOutsider" class="outsider-val">0</span></div>
+                <div class="summary-item">爪牙 (Minion)<span id="cntMinion" class="minion-val">1</span></div>
+                <div class="summary-item">惡魔 (Demon)<span id="cntDemon" class="demon-val">1</span></div>
+            </div>
+        </div>
+
+        <!-- 視圖切換區 -->
+        <div class="panel">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('draw')">📱 玩家輪流抽卡觀看 (Pass & Play)</button>
+                <button class="tab-btn" onclick="switchTab('grimoire')">📖 說書人魔典視圖 (Grimoire)</button>
+            </div>
+
+            <!-- 面交抽卡視圖 -->
+            <div id="drawView">
+                <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px;">點擊各座位卡片即可開啟/遮蔽角色資訊（請勿讓其他玩家看到）。</p>
+                <div class="cards-grid" id="cardsGrid">
+                    <!-- Cards rendered by JS -->
+                </div>
+            </div>
+
+            <!-- 說書人魔典視圖 -->
+            <div id="grimoireView" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>說書人完整配牌表</h3>
+                    <button onclick="copyGrimoireText()" style="padding: 6px 12px; font-size: 0.85rem;">📋 複製文字版記錄</button>
+                </div>
+
+                <table class="grimoire-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">座位</th>
+                            <th style="width: 25%;">角色</th>
+                            <th style="width: 20%;">陣營</th>
+                            <th>能力說明</th>
+                        </tr>
+                    </thead>
+                    <tbody id="grimoireBody">
+                        <!-- Filled by JS -->
+                    </tbody>
+                </table>
+
+                <div class="bluffs-container">
+                    <h4 style="color: var(--accent-gold);">惡魔偽裝資訊建議 (Demon Bluffs)</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 4px;">本局未抽出的村民 / 外來者角色推薦：</p>
+                    <div class="bluffs-list" id="bluffsList">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 內建劇本資料集 (Trouble Brewing)
+        const SCRIPTS = {
+            tb: [
+                { name: "洗衣婦", team: "townsfolk", ability: "你在首夜會得知2位玩家與其中1位的具體村民身份。" },
+                { name: "圖書館員", team: "townsfolk", ability: "你在首夜會得知2位玩家與其中1位的具體外來者身份（或得知無外來者）。" },
+                { name: "調查員", team: "townsfolk", ability: "你在首夜會得知2位玩家與其中1位的具體爪牙身份。" },
+                { name: "廚師", team: "townsfolk", ability: "你在首夜會得知有多少對邪惡玩家相鄰。" },
+                { name: "共情者", team: "townsfolk", ability: "你每晚會得知與你存活的鄰居中有多少位邪惡玩家。" },
+                { name: "佔卜師", team: "townsfolk", ability: "你每晚選擇2位玩家：得知其中是否有惡魔（有1位宿敵玩家會干擾結果）。" },
+                { name: "送葬者", team: "townsfolk", ability: "你每晚會得知今天白天被處決的玩家的具體身份。" },
+                { name: "僧侶", team: "townsfolk", ability: "除首夜外每晚：選擇1位玩家（不能是自己），今晚該玩家免疫惡魔襲擊。" },
+                { name: "養鴉人", team: "townsfolk", ability: "若你在夜晚被殺害，你每晚會選擇1位玩家並得知其具體身份。" },
+                { name: "處刑人", team: "townsfolk", ability: "若你首次提名玩家且該玩家被處決，該玩家若為村民則立即死亡。" },
+                { name: "士兵", team: "townsfolk", ability: "你免疫惡魔的襲擊。" },
+                { name: "市長", team: "townsfolk", ability: "若白天下課且只剩3位玩家存活，善良陣營直接獲勝。若你夜間被殺，可能由其他玩家替死。" },
+                { name: "管家", team: "outsider", ability: "你每晚選擇1位玩家（主人）。明天白天你只能在主人投票時跟隨投票。" },
+                { name: "醉鬼", team: "outsider", ability: "你不知道你是醉鬼。你以為你是某個村民並擁有其能力，但該能力失效。" },
+                { name: "聖徒", team: "outsider", ability: "若你被白天處決，邪惡陣營立即獲勝。" },
+                { name: "瘋子", team: "outsider", ability: "你以為你是惡魔，但你其實不是。" },
+                { name: "毒師", team: "minion", ability: "你每晚選擇1位玩家：今晚與明天白天該玩家中毒（能力失效且獲取錯誤資訊）。" },
+                { name: "間諜", team: "minion", ability: "你每晚能查看魔典。你在能力檢測中可能被登記為善良或村民。" },
+                { name: "男爵", team: "minion", ability: "【發牌設置】本局遊戲額外增加2名外來者。" },
+                { name: "猩紅女巫", team: "minion", ability: "若惡魔死亡且存活玩家大於等於5人時，你變成該惡魔。" },
+                { name: "小惡魔", team: "demon", ability: "每晚選擇1位玩家死亡。若你以此方式自殺，隨機1名爪牙變成小惡魔。" }
+            ],
+            bmr: [
+                { name: "祖母", team: "townsfolk", ability: "首夜得知孫子身份。若孫子被惡魔殺害，你同夜死亡。" },
+                { name: "水手", team: "townsfolk", ability: "每晚選擇1人喝醉。你不會被處決。" },
+                { name: "商販", team: "townsfolk", ability: "每晚得知今天是否有死於夜晚的玩家。" },
+                { name: "教授", team: "townsfolk", ability: "每局限一次，夜晚復活1位死去的村民。" },
+                { name: "月童", team: "outsider", ability: "若你死亡，當晚可選擇1人，若其為善良則同夜死亡。" },
+                { name: "教父", team: "minion", ability: "【發牌設置】外來者人數+1或-1。若白天有外來者死亡，當晚可額外殺人。" },
+                { name: "積木人", team: "demon", ability: "每晚可殺死多名玩家，但需要條件符合。" }
+            ],
+            snv: [
+                { name: "裁縫", team: "townsfolk", ability: "每局限一次，夜晚選擇2人得知是否同陣營。" },
+                { name: "哲學家", team: "townsfolk", ability: "每局限一次，夜晚選擇1個未在場角色並獲得其能力。" },
+                { name: "變臉師", team: "outsider", ability: "你每晚會變成不同角色。" },
+                { name: "邪惡雙生子", team: "minion", ability: "與1位善良玩家相認，白天的處決受到約束。" },
+                { name: "渦流", team: "demon", ability: "所有資訊類村民能力獲得的資訊均為錯誤資訊。" }
+            ]
+        };
+
+        // 標準人數配置表 [Townsfolk, Outsider, Minion, Demon]
+        const BASE_COUNTS = {
+            5:  [3, 0, 1, 1],
+            6:  [3, 1, 1, 1],
+            7:  [5, 0, 1, 1],
+            8:  [5, 1, 1, 1],
+            9:  [5, 2, 1, 1],
+            10: [7, 0, 2, 1],
+            11: [7, 1, 2, 1],
+            12: [7, 2, 2, 1],
+            13: [9, 0, 3, 1],
+            14: [9, 1, 3, 1],
+            15: [9, 2, 3, 1]
+        };
+
+        let currentScriptData = [...SCRIPTS.tb];
+        let assignedRoles = [];
+
+        function updateSetupSummary() {
+            const count = parseInt(document.getElementById('playerCount').value) || 7;
+            const mod = parseInt(document.getElementById('outsiderMod').value) || 0;
+
+            let base = BASE_COUNTS[count] || BASE_COUNTS[7];
+            let townsfolk = base[0];
+            let outsider = base[1] + mod;
+            let minion = base[2];
+            let demon = base[3];
+
+            // 調整外來者增減對村民數量的影響
+            if (outsider < 0) {
+                townsfolk += Math.abs(outsider);
+                outsider = 0;
+            } else if (mod > 0) {
+                townsfolk -= mod;
+                if (townsfolk < 0) townsfolk = 0;
+            }
+
+            document.getElementById('cntTownsfolk').innerText = townsfolk;
+            document.getElementById('cntOutsider').innerText = outsider;
+            document.getElementById('cntMinion').innerText = minion;
+            document.getElementById('cntDemon').innerText = demon;
+
+            return { townsfolk, outsider, minion, demon };
+        }
+
+        function loadSelectedScript() {
+            const val = document.getElementById('scriptSelect').value;
+            const jsonBox = document.getElementById('customJsonSection');
+            
+            if (val === 'custom') {
+                jsonBox.style.display = 'block';
+            } else {
+                jsonBox.style.display = 'none';
+                currentScriptData = [...(SCRIPTS[val] || SCRIPTS.tb)];
+            }
+        }
+
+        function parseCustomJson() {
+            try {
+                const text = document.getElementById('customJsonInput').value;
+                const parsed = JSON.parse(text);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    currentScriptData = parsed;
+                    alert('自訂劇本 JSON 套用成功！角色數量：' + parsed.length);
+                } else {
+                    alert('JSON 格式不正確，必須為角色物件陣列。');
+                }
+            } catch (e) {
+                alert('JSON 解析失敗：' + e.message);
+            }
+        }
+
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function generateRoles() {
+            const counts = updateSetupSummary();
+            
+            let townsfolkPool = currentScriptData.filter(r => r.team === 'townsfolk');
+            let outsiderPool = currentScriptData.filter(r => r.team === 'outsider');
+            let minionPool = currentScriptData.filter(r => r.team === 'minion');
+            let demonPool = currentScriptData.filter(r => r.team === 'demon');
+
+            // 洗牌抽取
+            shuffle(townsfolkPool);
+            shuffle(outsiderPool);
+            shuffle(minionPool);
+            shuffle(demonPool);
+
+            let selected = [];
+            selected.push(...townsfolkPool.slice(0, counts.townsfolk));
+            selected.push(...outsiderPool.slice(0, counts.outsider));
+            selected.push(...minionPool.slice(0, counts.minion));
+            selected.push(...demonPool.slice(0, counts.demon));
+
+            if (selected.length < (counts.townsfolk + counts.outsider + counts.minion + counts.demon)) {
+                alert('劇本中相應陣營的角色數量不足，請補充劇本角色！');
+                return;
+            }
+
+            // 再次隨機打亂分配給座位
+            assignedRoles = shuffle(selected);
+
+            renderDrawCards();
+            renderGrimoire(townsfolkPool.slice(counts.townsfolk).concat(outsiderPool.slice(counts.outsider)));
+        }
+
+        function renderDrawCards() {
+            const container = document.getElementById('cardsGrid');
+            container.innerHTML = '';
+
+            assignedRoles.forEach((role, index) => {
+                const card = document.createElement('div');
+                card.className = `player-card`;
+                card.id = `card-${index}`;
+                card.onclick = () => toggleCard(index, role);
+
+                card.innerHTML = `
+                    <div class="seat-number">${index + 1} 號玩家</div>
+                    <div style="font-size: 1.8rem; margin-bottom: 5px;">❓</div>
+                    <div style="font-size: 0.9rem; color: var(--text-dim);">點擊翻牌觀看</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleCard(index, role) {
+            const card = document.getElementById(`card-${index}`);
+            const isRevealed = card.classList.contains('revealed');
+
+            if (isRevealed) {
+                card.classList.remove('revealed', role.team, 'Townsfolk', 'Outsider', 'Minion', 'Demon');
+                card.innerHTML = `
+                    <div class="seat-number">${index + 1} 號玩家</div>
+                    <div style="font-size: 1.8rem; margin-bottom: 5px;">❓</div>
+                    <div style="font-size: 0.9rem; color: var(--text-dim);">點擊翻牌觀看</div>
+                `;
+            } else {
+                let teamName = {
+                    townsfolk: '村民',
+                    outsider: '外來者',
+                    minion: '爪牙',
+                    demon: '惡魔'
+                }[role.team] || role.team;
+
+                let teamClass = role.team.charAt(0).toUpperCase() + role.team.slice(1);
+
+                card.classList.add('revealed', teamClass);
+                card.innerHTML = `
+                    <div class="seat-number">${index + 1} 號玩家</div>
+                    <div class="role-name">${role.name}</div>
+                    <div class="role-type">${teamName}</div>
+                    <div class="role-desc">${role.ability || ''}</div>
+                `;
+            }
+        }
+
+        function renderGrimoire(unusedGoodRoles) {
+            const tbody = document.getElementById('grimoireBody');
+            tbody.innerHTML = '';
+
+            assignedRoles.forEach((role, index) => {
+                let teamName = {
+                    townsfolk: '村民 (Townsfolk)',
+                    outsider: '外來者 (Outsider)',
+                    minion: '爪牙 (Minion)',
+                    demon: '惡魔 (Demon)'
+                }[role.team] || role.team;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${index + 1} 號</strong></td>
+                    <td style="color: var(--accent-gold); font-weight: bold;">${role.name}</td>
+                    <td>${teamName}</td>
+                    <td style="font-size: 0.85rem;">${role.ability || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 偽裝建議
+            const bluffsContainer = document.getElementById('bluffsList');
+            bluffsContainer.innerHTML = '';
+            unusedGoodRoles.slice(0, 3).forEach(r => {
+                const badge = document.createElement('div');
+                badge.className = 'bluff-badge';
+                badge.innerText = `${r.name} (${r.team === 'townsfolk' ? '村民' : '外來者'})`;
+                bluffsContainer.appendChild(badge);
+            });
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (tab === 'draw') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('drawView').style.display = 'block';
+                document.getElementById('grimoireView').style.display = 'none';
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('drawView').style.display = 'none';
+                document.getElementById('grimoireView').style.display = 'block';
+            }
+        }
+
+        function copyGrimoireText() {
+            if (assignedRoles.length === 0) {
+                alert('請先抽取角色！');
+                return;
+            }
+            let text = "📜【血染鐘樓 說書人座位表】
+";
+            assignedRoles.forEach((r, i) => {
+                text += `${i + 1} 號座位：${r.name} (${r.team})
+`;
+            });
+            navigator.clipboard.writeText(text).then(() => {
+                alert('已將魔典記錄複製至剪貼簿！');
+            });
+        }
+
+        // 初始化
+        updateSetupSummary();
+        generateRoles();
+    </script>
+</body>
+</html>
